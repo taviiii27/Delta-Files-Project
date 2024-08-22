@@ -3,14 +3,19 @@ import time
 import json
 import shutil 
 class DeltaFile():
-    def __init__(self,path,textFilePath):
+    def __init__(self,path,textFilePath,mode):
+        if mode not in ['generator', 'reader']:
+            raise ValueError('mod trebuie sa fie generator sau reader')
         self.path=path
-        os.rename(textFilePath,path+'content.txt')
-        os.makedirs(self.path+'versioning')
-        shutil.copyfile(self.path+'content.txt',self.path+'versioning/v1.txt')
-        modifiedTime=os.path.getmtime(self.path+'content.txt')
-        self.__generate_log_file(modifiedTime)
-        self.__listener()
+        if mode=='generator':
+            os.rename(textFilePath,path+'content.txt')
+            os.makedirs(self.path+'versioning')
+            shutil.copyfile(self.path+'content.txt',self.path+'versioning/v1.txt')
+            modifiedTime=os.path.getmtime(self.path+'content.txt')
+            self.__generate_log_file(modifiedTime)
+            self.__listener()
+        else:
+            self.textFilePath=textFilePath
 
         
     def __generate_log_file(self,modifiedTime):        
@@ -49,6 +54,32 @@ class DeltaFile():
                         else:
                             print('No changes!')
             time.sleep(3)
+    
+    
+    def get_content(self, version=None, timestamp=None):
+        '''functia va returna fisierul de la o anumita data ora specificata la apelarea functiei'''
+        if version is not None:
+            filepath=f'{self.path}versioning/v{version}.txt'
+        else:
+            if timestamp is not None:
+                logs=self.__get_logs()
+                keys=[key for key in logs.keys()]
+                if timestamp<float(keys[0]):
+                    print("timestamp este dinainte ca fisierul sa fi fost creat")
+                if timestamp>float(keys[-1]):
+                    filepath=self.path+logs[keys[-1]]
+                for i in range(len(logs.keys()))-1:
+                    if timestamp>float(keys[i]) and timestamp<float(keys[i+1]):
+                        leftTimeStamp=keys[i]
+                filepath=f"{self.path}versioning/{logs[leftTimeStamp]}"
+            else:
+                filepath=self.path+self.textFilePath
+        try:
+            with open(filepath, 'r') as file:
+                content=file.read()
+                return content
+        except FileNotFoundError:
+            return 'introduceti o versiune care sa existe'
 
-
-DeltaFile('testfile/', 'content.txt')
+myfile=DeltaFile('testfile/', 'content.txt', 'reader')
+print(myfile.get_content(version=2))
